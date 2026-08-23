@@ -1,3 +1,14 @@
+export type UserRole = "student" | "faculty";
+
+export interface UserProfile {
+  name: string;
+  email: string;
+  role: UserRole;
+  department: string;
+  studentIdOrFacultyId: string;
+  avatarText: string;
+}
+
 export interface ChatMessage {
   id: string;
   sender: "user" | "ai";
@@ -6,7 +17,7 @@ export interface ChatMessage {
   category?: string;
 }
 
-export interface FacultyPillarInfo {
+export interface PillarInfo {
   id: string;
   title: string;
   shortDesc: string;
@@ -15,4 +26,3 @@ export interface FacultyPillarInfo {
   badge: string;
   benefits: string[];
 }
-
