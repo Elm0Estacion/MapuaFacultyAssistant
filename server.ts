@@ -99,7 +99,76 @@ const VALID_ACCOUNTS = [
   },
 ];
 
-// Comprehensive Knowledge Base extracted from Mapúa University Official Documentation
+// Comprehensive Knowledge Base extracted from Mapúa University Official Documentation and Academic Handbook A.Y. 2026 - 2027
+const MAPUA_ACADEMIC_HANDBOOK_KNOWLEDGE = `
+AUTHORITATIVE MAPÚA UNIVERSITY ACADEMIC HANDBOOK (A.Y. 2026 - 2027):
+
+1. VISION, MISSION, & CORE VALUES (DECIR):
+- Vision: "Mapúa University, a global leader in education, fosters socio-economic growth in society through innovation, digital transformation, and lifelong education."
+- Mission: Provide a learning environment for students to be globally competitive; engage in economically viable R&D and innovation; provide state-of-the-art solutions to industry and community problems.
+- Core Values (DECIR): DISCIPLINE, EXCELLENCE, COMMITMENT, INTEGRITY, RELEVANCE.
+- YGC Core Values: Passion for Excellence, Sense of Urgency, Professional Discipline, Teamwork, Loyalty.
+- Campuses: Intramuros (658 Muralla St.), Makati (1191 Pablo Ocampo Sr. Ext.), and Ayala Malls Manila Bay (STHM Mess Hall).
+- Education System: Quarterm System (4 terms per academic year, each term is 11 weeks long).
+
+2. PART D, SECTION III: ACADEMIC POLICY ON GENERATIVE AI AT MAPÚA UNIVERSITY:
+- Philosophical Grounding: Guided by Aristotle's "Golden Mean" and "Nothing in excess" to embrace generative AI tools while safeguarding academic integrity and mitigating risks/hallucinations. Complies with RA 10173 (Data Privacy Act of 2012).
+- Permitted Student AI Uses: Adaptive learning tools, virtual assistant chatbots (like Noodle Factory / Walter AI), personalized content curation, self-reflective problem solving, and intelligent language learning.
+- Permitted Faculty AI Uses: Online syllabus design, intelligent scheduling, automated assignment/rubric evaluation assistance, student performance analytics, and dynamic content/quiz generation.
+- Mandatory Attribution: When instructors permit AI usage on assignments, students MUST provide reproducible attribution: (1) date accessed, (2) tool/URL accessed, and (3) exact prompt used.
+- Research Policy: LLMs cannot be listed as co-authors. Researchers are solely accountable for originality and integrity, must verify AI citations, and must state LLM limitations in methods/acknowledgements.
+- Academic Integrity (Section II): Unpermitted AI usage or plagiarizing AI output is penalized with an outright modular grade of 5.00/F and referral to the Prefect of Discipline (OPD).
+
+3. PART B, SECTION IV: ACADEMIC POLICIES & GRADING SYSTEM:
+- Grading Table (Numerical & Letter):
+  * 1.00 (A): 98–100% (Excellent)
+  * 1.25 (A-): 95–97.99% / 96–97.99% (Highly Meritorious)
+  * 1.50 (B+): 91–94.99% / 94–95.99% (Meritorious)
+  * 1.75 (B): 88–90.99% / 92–93.99% (Very Good)
+  * 2.00 (B-): 85–87.99% / 90–91.99% (Good)
+  * 2.25 (C+): 81–84.99% / 88–89.99% (Satisfactory)
+  * 2.50 (C): 77–80.99% / 86–87.99% (Fair)
+  * 2.75 (D+): 73–76.77% / 83–85.99% (Marginal)
+  * 3.00 (D): 70–72.99% / 80–82.99% (Lowest Passing Grade)
+  * 5.00 (F): 0–69.99% / 0–79.99% (Failure)
+  * Non-numeric marks: ABS (Failure due to >=20% absences), C (Continuing thesis), I (Incomplete), W (Official Withdrawal), IP (In Progress - UOx), P (Passed), F (Failed).
+- 20% Absence Rule: Accumulating 20% absences results in automatic 5.00 (FAILURE):
+  * 1-unit course: 2 absences max
+  * 2-unit course: 4 absences max
+  * 3-unit course: 7 absences max
+  * 4-unit course: 9 absences max
+  * 5-unit course: 11 absences max
+- Incomplete Grade ("I"): Must be completed within the next two (2) terms via Request to Complete Course Form (FM-RO-19) and Completion Report Form (FM-RO-20). If uncompleted, it lapses to 5.00.
+- Official Withdrawal ("W"): Must be filed on or before Friday of the 6th week via FM-RO-21-02. Allowed at most twice on the same course. Cannot be removed or completed.
+- Course Load: Full-time is >=15 units (or graduating). Max load 21 units. Good standing students may overload up to 3 units with Dean approval. Graduating students with <=34 units remaining can overload up to 4 units in their last two terms and waive prerequisites to take courses concurrently.
+
+4. SCHOLARSHIPS, DEAN'S LIST & HONORS:
+- President's List Academic Scholarship: QWA 1.00 to 1.50 = 100% full tuition discount; QWA 1.51 to 1.75 = 50% half tuition discount for succeeding term. Must coordinate with CSFA to sign undertaking.
+- Dean's List Award: QWA 1.00 to 1.75, running GWA 1.00 to 2.00, >=12 units enrolled, no failing grade (F, 5.00, ABS), no IP, C, I, or W, and no academic dismissal.
+- Latin Honors: Summa Cum Laude (GWA 1.00 to 1.20), Magna Cum Laude (GWA 1.21 to 1.45), Cum Laude (GWA 1.46 to 1.75). Requires >=75% units taken in Mapúa and zero disciplinary or failing marks.
+- Baccalaureate Medals: Don Tomas Mapúa Gold Medal (Highest GWA >=2.00 in Engineering, ARIDBE, SOIT), President Oscar B. Mapúa Silver Medal (2nd Highest GWA >=2.00).
+
+5. RETENTION & SHIFTING POLICIES:
+- Academic Good Standing: QWA 1.00 to 3.50.
+- Academic Warning: QWA 3.51 to 4.50 (1st time).
+- Academic Probation: QWA 3.51 to 4.50 (2nd time).
+- Academic Final Probation: QWA 3.51 to 4.50 (3rd time) or QWA 4.51-5.00. Max load capped at 12 units.
+- Licensure Programs: Failing any professional course or same math/science course 3 times = Final Probation; 4 times = Program Dismissal (cannot be readmitted to licensure programs).
+- Shifting to Licensure Programs: Cumulative average >=2.50 with no failing grades; weighted average in Math (up to Integral Calculus), Physics, and Chemistry must be >=2.50.
+- Modality Shifting (Blended <-> UOx): Shifting modality is allowed ONCE ONLY.
+
+6. PART C: INSTITUTE FOR DIGITAL LEARNING (IDL & UOx):
+- Ubiquitous Online Experience (UOx): 100% online degrees with modular delivery (modules = units; 3 units = 3 modules across 11 weeks).
+- Whole-Course Cumulative Grading Model.
+- Delivery Modes: (1) Self-Paced (Tier 1-2 General Education) and (2) Instructor-Facilitated (Tier 3-4 Major & Terminal courses). Supported by UOx Life Coaches.
+
+7. PART F & G: STUDENT AFFAIRS, DISCIPLINE & SERVICES:
+- Office of the Prefect of Discipline (OPD): Progressive sanctions for 19 minor offenses (1st: Warning, 2nd: 3 hrs community service, 3rd: 6 hrs community service, 4 minor in 1 quarter = Major). 35 major offenses (cheating, bullying RA 10627, hazing RA 11053, drugs RA 9165, Safe Space Act RA 11313).
+- Mapúa Library: Intramuros (2nd Flr West Bldg) & Makati (3rd Flr) Mon-Fri 7:00 AM - 9:00 PM, Sat 7:00 AM - 5:00 PM. Book-a-Space discussion rooms (4-8 capacity, 15m - 2hrs). Library of Things (tablets, calculators, DSLRs, ring lights). Fines: Circulation/Filipiniana = PHP 10/day; Reserve = PHP 20/day; Reference = PHP 10/hour. Subscribed databases: IEEE Xplore, ScienceDirect, Scopus, Web of Science, EBSCO, Turnitin.
+- ILMO Laboratories: Dress code strictly forbids shorts, sleeveless tops, and open shoes in hazardous labs. Mandatory PPE. Thesis/capstone lab reservations require 3 working days advance submission.
+- DO-IT: MyMapua portal, Cardinal Plus Smart ID & ATM (RCBC MyWallet), 1 Gbps redundant network with PHopenIX, free Office 365 Education suite.
+`;
+
 const MAPUA_NOODLE_FACTORY_KNOWLEDGE = `
 AUTHORITATIVE MAPÚA NOODLE FACTORY KNOWLEDGE BASE (Office for Artificial Intelligence Curriculum Integration):
 
@@ -155,37 +224,36 @@ VI. AGENT DASHBOARD & ANALYTICS:
   * "Unanswered Questions" (isolates student queries where knowledge gaps exist so faculty can update materials).
 - Question Board & Discussion: Threaded student questions and instructor discussion prompts.
 - Bot Experience Tab: User ratings (1 to 5 stars) and qualitative feedback.
-
-VII. MAPÚA OUTCOME-BASED EDUCATION (OBE) & QUARTERM:
-- Course Outcomes (CO1: Fundamental Principles, CO2: Problem Analysis, CO3: System Design & Implementation, CO4: Practical Application & Ethics).
-- 10-Week Quarterm pacing: Week 1 orientation, Week 5 midterms, Week 10 finals/projects.
-- MyMapua student petitions: Units overload, prerequisite waivers, and 1-year INC grade completion policy.
 `;
 
 // System Prompts for Student & Faculty modes
 const SYSTEM_PROMPT_FACULTY = `
-You are the Official Mapúa Noodle Factory Faculty Enablement & Onboarding AI Agent, built with complete knowledge of the official Mapúa University AI Curriculum Integration reports and Faculty User Guides (Cadacio & Nicolas).
+You are the Official Mapúa Noodle Factory Faculty Enablement & Onboarding AI Agent, built with complete knowledge of the official Mapúa University AI Curriculum Integration reports, Faculty User Guides (Cadacio & Nicolas), and the official Mapúa University Academic Handbook A.Y. 2026 - 2027.
 
-Your primary mission is to guide, train, and support MAPÚA UNIVERSITY FACULTY MEMBERS (Professors, Instructors, Department Chairs, and Lab Coordinators) on how to effectively use the Noodle Factory AI Platform to enhance teaching efficiency, automate repetitive tasks, and support Outcome-Based Education (OBE).
+Your primary mission is to guide, train, and support MAPÚA UNIVERSITY FACULTY MEMBERS (Professors, Instructors, Department Chairs, and Lab Coordinators) on how to effectively use the Noodle Factory AI Platform to enhance teaching efficiency, digitize syllabi, automate rubric grading, and align with Mapúa's institutional policies and Outcome-Based Education (OBE).
+
+${MAPUA_ACADEMIC_HANDBOOK_KNOWLEDGE}
 
 ${MAPUA_NOODLE_FACTORY_KNOWLEDGE}
 
 Faculty Support Guidance:
-- When answering faculty questions, reference official terminology and navigation paths (e.g., Blackboard Content Market > Walter AI Activity, Agentic Mode with Learning Companion Plus, Fallback to GPT toggle, Generate Distractors, Question Bank, Single LMS Import Rule).
-- Provide step-by-step instructions, best practices, and proactive pedagogical recommendations for engineering, computing, architecture, business, and general education courses.
+- When answering faculty questions, cite official Academic Handbook A.Y. 2026-2027 sections (e.g. Part D Section III for Generative AI Policy, Part B Section IV for Grading and Retention, Part C for UOx Modular delivery, Part G for ILMO Lab & Library guidelines).
+- Provide step-by-step instructions, best practices, and proactive pedagogical recommendations for engineering, computing, architecture, business, health sciences, and general education courses.
 - Format responses cleanly with bold headings, bullet points, and actionable tips.
 `;
 
 const SYSTEM_PROMPT_STUDENT = `
-You are the Official Mapúa Noodle Factory Student Learning & Onboarding AI Copilot, built with complete knowledge of the official Mapúa University AI Curriculum Integration reports and Faculty User Guides (Cadacio & Nicolas).
+You are the Official Mapúa Noodle Factory Student Learning & Onboarding AI Copilot, built with complete knowledge of the official Mapúa University Academic Handbook A.Y. 2026 - 2027, the Mapúa AI Curriculum Integration reports, and Faculty User Guides.
 
-Your primary mission is to empower and guide MAPÚA UNIVERSITY STUDENTS (Cardinals) across their academic journey using the Noodle Factory AI platform, aligned with Mapúa's Outcome-Based Education (OBE) and fast-paced 10-week Quarterm system.
+Your primary mission is to empower and guide MAPÚA UNIVERSITY STUDENTS (Cardinals) across their academic journey using the Noodle Factory AI platform, aligned with Mapúa's Outcome-Based Education (OBE), official handbook policies, and the 11-week Quarterm system.
+
+${MAPUA_ACADEMIC_HANDBOOK_KNOWLEDGE}
 
 ${MAPUA_NOODLE_FACTORY_KNOWLEDGE}
 
 Student Support Guidance:
+- Authoritative Handbook Citations: When students ask about academic rules, cite specific sections from the Mapúa Academic Handbook A.Y. 2026-2027 (e.g. Generative AI policy, 20% absence threshold, Dean's List QWA 1.00-1.75, President's list tuition discount, Incomplete 'I' completion period of 2 terms via FM-RO-19/20, Withdrawal 'W' by Week 6, Retention/probation thresholds, and Shifting requirements).
 - Socratic Pedagogy: Guide students with hints, conceptual breakdowns, formulas, and leading questions without spoon-feeding direct answer keys or doing homework for them.
-- Mapúa OBE: Help students prepare for Course Outcomes (CO1 to CO4) through structured drills and self-assessments.
 - Student Tools in Walter AI: Guide them on using Rich Editor Mode (for code/formulas), Conversation Mode, Voice Input, Bookmarks, and Question Board.
 - MyMapua Petitions: Provide step-by-step assistance with units overload, prerequisite waivers, and Incomplete (INC) completion guidelines.
 - Tone: Encouraging, empathetic, structured, and academically rigorous.
@@ -204,14 +272,15 @@ app.get("/api/health", (req, res) => {
   });
 });
 
-// Diagnostics endpoint to test Ollama connection directly
+// Diagnostics endpoint to test Ollama and Gemini connection directly
 app.get("/api/ai-status", async (req, res) => {
-  const ollamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+  const customHost = req.query.host as string;
+  const ollamaHost = customHost || process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
   const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
-  const provider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
+  const defaultProvider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
 
   const results: any = {
-    provider,
+    provider: defaultProvider,
     ollamaHost,
     ollamaModel,
     geminiKeySet: Boolean(process.env.GEMINI_API_KEY),
@@ -220,15 +289,32 @@ app.get("/api/ai-status", async (req, res) => {
     details: "",
   };
 
+  // Check Ollama reachable
   try {
-    const check = await fetch(`${ollamaHost}/api/tags`);
-    if (check.ok) {
-      const data: any = await check.json();
-      results.ollamaReachable = true;
-      results.installedModels = data?.models?.map((m: any) => m.name) || [];
-      results.details = "Connected to Ollama successfully.";
-    } else {
-      results.details = `Ollama responded with status ${check.status}`;
+    const hostCandidates = [
+      ollamaHost,
+      ollamaHost.includes("localhost") ? ollamaHost.replace("localhost", "127.0.0.1") : "http://127.0.0.1:11434",
+      "http://localhost:11434"
+    ];
+    const uniqueHosts = Array.from(new Set(hostCandidates));
+
+    for (const host of uniqueHosts) {
+      try {
+        const check = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(3000) });
+        if (check.ok) {
+          const data: any = await check.json();
+          results.ollamaReachable = true;
+          results.installedModels = data?.models?.map((m: any) => m.name) || [];
+          results.details = `Connected to Ollama at ${host} successfully (${results.installedModels.length} model(s) available).`;
+          break;
+        }
+      } catch (innerErr) {
+        // continue trying other hosts
+      }
+    }
+
+    if (!results.ollamaReachable) {
+      results.details = `Could not reach Ollama at ${ollamaHost}. Ensure the Ollama desktop app or daemon is running.`;
     }
   } catch (err: any) {
     results.details = `Failed to connect to ${ollamaHost}: ${err.message}`;
@@ -372,7 +458,16 @@ app.delete("/api/conversations/:id", (req, res) => {
 // Chat endpoint for Student & Faculty Noodle Factory Copilot supporting both Local Ollama and Cloud Gemini
 app.post("/api/chat", async (req, res) => {
   try {
-    const { message, history = [], role = "faculty", user = null, context = "" } = req.body;
+    const {
+      message,
+      history = [],
+      role = "faculty",
+      user = null,
+      context = "",
+      provider: requestedProvider,
+      ollamaModel: requestedOllamaModel,
+      ollamaHost: requestedOllamaHost,
+    } = req.body;
 
     if (!message || typeof message !== "string" || !message.trim()) {
       return res.status(400).json({ error: "A non-empty message is required." });
@@ -388,12 +483,12 @@ ${user ? `- Name: ${user.name}\n- Email: ${user.email}\n- Department: ${user.dep
 ${context ? `Additional Context: ${context}` : ""}
 `;
 
-    const provider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
-    const rawOllamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
-    const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
+    const provider = requestedProvider || process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
+    const rawOllamaHost = requestedOllamaHost || process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+    const ollamaModel = requestedOllamaModel || process.env.OLLAMA_MODEL || "llama3.2";
 
-    // 1. Try Local Ollama if configured or as fallback
-    if (provider === "ollama" || !process.env.GEMINI_API_KEY) {
+    // 1. If explicit Ollama requested or Gemini key missing and provider is Ollama
+    if (provider === "ollama" || (!process.env.GEMINI_API_KEY && provider !== "gemini")) {
       // List of local endpoints to try (handles IPv4 127.0.0.1 and localhost alias)
       const hostCandidates = [
         rawOllamaHost,
@@ -446,7 +541,7 @@ ${context ? `Additional Context: ${context}` : ""}
 
       if (provider === "ollama") {
         return res.status(503).json({
-          error: `Could not connect to Ollama. Details: ${lastOllamaError}. Please check that the Ollama app is open, or run 'ollama run ${ollamaModel}' in your terminal.`,
+          error: `Could not connect to Ollama (${ollamaModel}) at ${rawOllamaHost}. Details: ${lastOllamaError}. Ensure Ollama is running ('ollama serve' or start the Ollama desktop app) or switch to Gemini API using the selector above.`,
         });
       }
     }
@@ -503,32 +598,67 @@ ${context ? `Additional Context: ${context}` : ""}
     }
 
     let responseText = "";
+    let successfulModel = "gemini-3.6-flash";
 
     try {
       const ai = getGeminiClient();
-      
-      // Try gemini-2.5-flash first, fallback to gemini-3.7-flash
-      try {
-        const response = await ai.models.generateContent({
-          model: "gemini-2.5-flash",
-          contents: alternatingContents,
-          config: {
-            systemInstruction: systemPrompt,
-            temperature: 0.7,
-          },
-        });
-        responseText = response.text || "";
-      } catch (primaryErr: any) {
-        console.warn("Primary model gemini-2.5-flash failed, attempting gemini-3.7-flash fallback:", primaryErr?.message);
-        const fallbackResponse = await ai.models.generateContent({
-          model: "gemini-3.7-flash",
-          contents: alternatingContents,
-          config: {
-            systemInstruction: systemPrompt,
-            temperature: 0.7,
-          },
-        });
-        responseText = fallbackResponse.text || "";
+      const modelCandidates = ["gemini-3.6-flash", "gemini-3.7-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+      let lastModelError: any = null;
+
+      for (const model of modelCandidates) {
+        // Attempt with current model with up to 1 retry on 503 / high demand
+        let attempts = 0;
+        const maxAttempts = 2;
+
+        while (attempts < maxAttempts) {
+          attempts++;
+          try {
+            const response = await ai.models.generateContent({
+              model,
+              contents: alternatingContents,
+              config: {
+                systemInstruction: systemPrompt,
+                temperature: 0.7,
+              },
+            });
+
+            if (response.text && response.text.trim()) {
+              responseText = response.text;
+              successfulModel = model;
+              lastModelError = null;
+              break;
+            }
+          } catch (modelErr: any) {
+            lastModelError = modelErr;
+            const errMsg = modelErr?.message || "";
+            const is503OrRateLimit = errMsg.includes("503") || errMsg.includes("UNAVAILABLE") || errMsg.includes("429") || errMsg.includes("RESOURCE_EXHAUSTED");
+            const is404 = errMsg.includes("404") || errMsg.includes("NOT_FOUND");
+
+            console.warn(`Model ${model} attempt ${attempts} failed:`, errMsg);
+
+            if (is404) {
+              // Model not found or deprecated, immediately jump to next model
+              break;
+            }
+
+            if (is503OrRateLimit && attempts < maxAttempts) {
+              // Wait briefly before retry
+              await new Promise((resolve) => setTimeout(resolve, 800));
+              continue;
+            }
+
+            // Otherwise, break and try next candidate model
+            break;
+          }
+        }
+
+        if (responseText) {
+          break;
+        }
+      }
+
+      if (!responseText && lastModelError) {
+        throw lastModelError;
       }
     } catch (geminiError: any) {
       console.error("Gemini API Error:", geminiError);
@@ -540,12 +670,17 @@ ${context ? `Additional Context: ${context}` : ""}
         });
       }
 
+      const isUnavailable = geminiError?.message?.includes("503") || geminiError?.message?.includes("UNAVAILABLE");
+      const userFriendlyError = isUnavailable
+        ? "Gemini API is currently experiencing temporary high traffic. Please try again in a few moments, or switch to Ollama Local AI in the top bar."
+        : geminiError.message || "Failed to generate AI response.";
+
       return res.status(500).json({
-        error: geminiError.message || "Failed to generate AI response.",
+        error: userFriendlyError,
       });
     }
 
-    res.json({ text: responseText || "No response generated by AI model.", provider: "gemini" });
+    res.json({ text: responseText || "No response generated by AI model.", provider: `gemini (${successfulModel})` });
   } catch (error: any) {
     console.error("Error in /api/chat handler:", error);
     res.status(500).json({ error: error.message || "Failed to generate AI response." });

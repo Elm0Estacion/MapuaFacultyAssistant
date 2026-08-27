@@ -1,4 +1,5 @@
 export type UserRole = "student" | "faculty";
+export type AIProvider = "gemini" | "ollama";
 
 export interface UserProfile {
   name: string;
@@ -15,6 +16,7 @@ export interface ChatMessage {
   text: string;
   timestamp: string;
   category?: string;
+  provider?: string; // "gemini" | "ollama" | specific model
 }
 
 export interface Conversation {
@@ -25,6 +27,7 @@ export interface Conversation {
   updatedAt: string;
   messages: ChatMessage[];
   role: UserRole;
+  selectedProvider?: AIProvider;
 }
 
 export interface PillarInfo {
@@ -35,4 +38,14 @@ export interface PillarInfo {
   iconName: string;
   badge: string;
   benefits: string[];
+}
+
+export interface AIStatusResponse {
+  provider: AIProvider;
+  geminiKeySet: boolean;
+  ollamaReachable: boolean;
+  ollamaHost: string;
+  ollamaModel: string;
+  installedModels: string[];
+  details: string;
 }
