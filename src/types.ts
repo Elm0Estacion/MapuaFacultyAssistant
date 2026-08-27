@@ -17,6 +17,16 @@ export interface ChatMessage {
   category?: string;
 }
 
+export interface Conversation {
+  id: string;
+  userEmail: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+  role: UserRole;
+}
+
 export interface PillarInfo {
   id: string;
   title: string;

@@ -1,5 +1,9 @@
-import React, { useState, useRef, useEffect } from "react";
-import { UserProfile, ChatMessage, PillarInfo } from "../types";
+import React, { useState, useRef, useEffect, useCallback } from "react";
+import Markdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { UserProfile, ChatMessage, Conversation, PillarInfo } from "../types";
+import { ChatHistorySidebar } from "./ChatHistorySidebar";
+import { generateChatTitle } from "../utils/chatUtils";
 import {
   Send,
   Bot,
@@ -10,18 +14,18 @@ import {
   Check,
   Lightbulb,
   BookOpen,
-  Briefcase,
   Award,
   FileText,
   Clock,
   ChevronDown,
   ChevronUp,
-  Layers,
-  HelpCircle,
   BarChart3,
-  GraduationCap,
   Compass,
   CheckCircle2,
+  Menu,
+  Plus,
+  MessageSquare,
+  PanelLeft,
 } from "lucide-react";
 
 interface NoodleOnboardingBotProps {
@@ -150,10 +154,11 @@ const FACULTY_FAQS = [
 
 export const NoodleOnboardingBot: React.FC<NoodleOnboardingBotProps> = ({ user }) => {
   const isStudent = user.role === "student";
+  const userStorageKey = `mapua_convos_${user.email.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
 
-  const getInitialWelcome = () => {
-    if (isStudent) {
-      return `Hello **${user.name}**! 🎓 Welcome to the **Noodle Factory AI Platform** at Mapúa University!
+  const createInitialWelcomeMessage = useCallback((): ChatMessage => {
+    const welcomeText = isStudent
+      ? `Hello **${user.name}**! 🎓 Welcome to the **Noodle Factory AI Platform** at Mapúa University!
 
 I am your **AI Learning & Academic Success Copilot**. Here is how Noodle Factory empowers your studies:
 
@@ -162,9 +167,8 @@ I am your **AI Learning & Academic Success Copilot**. Here is how Noodle Factory
 3. 📝 **MyMapua Administrative Guidance**: Step-by-step help with units overload petitions, prerequisite waivers, and Incomplete (INC) completion.
 4. ⚡ **Quarterm Survival Framework**: Accelerated study routines tailored to Mapúa's intensive 10-week terms.
 
-**What would you like to explore today? Click any pillar above or ask a question below!**`;
-    } else {
-      return `Welcome, **${user.name}**! 💼 Welcome to the **Noodle Factory AI Platform** at Mapúa University!
+**What would you like to explore today? Click any pillar above or ask a question below!**`
+      : `Welcome, **${user.name}**! 💼 Welcome to the **Noodle Factory AI Platform** at Mapúa University!
 
 I am your **Faculty Enablement & Pedagogy Specialist**. Here is how Noodle Factory optimizes your teaching and course management:
 
@@ -174,29 +178,294 @@ I am your **Faculty Enablement & Pedagogy Specialist**. Here is how Noodle Facto
 4. 📊 **Mapúa OBE & LMS Alignment**: Map course materials and assessments to Course Outcomes (**CO1-CO4**) with Blackboard LMS integration.
 
 **What feature of Noodle Factory would you like to explore today? Click any pillar above or ask a question below!**`;
-    }
-  };
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: `welcome-${user.role}-1`,
+    return {
+      id: `welcome-${Date.now()}`,
       sender: "ai",
-      text: getInitialWelcome(),
+      text: welcomeText,
       timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    },
-  ]);
+    };
+  }, [isStudent, user.name]);
 
+  const createBlankConversation = useCallback(
+    (customTitle?: string): Conversation => {
+      const now = new Date().toISOString();
+      return {
+        id: `convo_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        userEmail: user.email,
+        title: customTitle || "New Conversation",
+        createdAt: now,
+        updatedAt: now,
+        role: user.role,
+        messages: [createInitialWelcomeMessage()],
+      };
+    },
+    [user.email, user.role, createInitialWelcomeMessage]
+  );
+
+  // Conversations State
+  const [conversations, setConversations] = useState<Conversation[]>(() => {
+    try {
+      const saved = localStorage.getItem(userStorageKey);
+      if (saved) {
+        const parsed: Conversation[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed;
+        }
+      }
+    } catch (e) {
+      console.error("Failed to load local conversations", e);
+    }
+    return [createBlankConversation()];
+  });
+
+  const [activeConversationId, setActiveConversationId] = useState<string>(() => {
+    return conversations[0]?.id || "";
+  });
+
+  // UI state
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [activePillarId, setActivePillarId] = useState<string>(isStudent ? "socratic" : "kb");
   const [showFaq, setShowFaq] = useState(false);
   const [expandedFaqIndex, setExpandedFaqIndex] = useState<number | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Get currently active conversation
+  const activeConversation =
+    conversations.find((c) => c.id === activeConversationId) || conversations[0];
+  const messages = activeConversation ? activeConversation.messages : [];
+
+  // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
+
+  // Load conversations from server API on mount, merging with local
+  useEffect(() => {
+    async function fetchServerConversations() {
+      try {
+        const res = await fetch(`/api/conversations?email=${encodeURIComponent(user.email)}`);
+        const data = await res.json();
+        if (data.success && Array.isArray(data.conversations) && data.conversations.length > 0) {
+          setConversations(data.conversations);
+          // If active ID is not in list, pick the first
+          setActiveConversationId((currentId) => {
+            const exists = data.conversations.some((c: Conversation) => c.id === currentId);
+            return exists ? currentId : data.conversations[0].id;
+          });
+        }
+      } catch (err) {
+        console.warn("Could not sync with server conversations endpoint, using local cache:", err);
+      }
+    }
+    fetchServerConversations();
+  }, [user.email]);
+
+  // Save conversations to localStorage and sync active convo to server
+  const persistConversations = useCallback(
+    (updatedList: Conversation[], activeConvoToSync?: Conversation) => {
+      setConversations(updatedList);
+      try {
+        localStorage.setItem(userStorageKey, JSON.stringify(updatedList));
+      } catch (err) {
+        console.error("Failed to save to localStorage:", err);
+      }
+
+      // Sync active conversation to backend
+      if (activeConvoToSync) {
+        fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversation: activeConvoToSync }),
+        }).catch((err) => console.warn("Failed to persist conversation to server:", err));
+      }
+    },
+    [userStorageKey]
+  );
+
+  // 1. Handle New Chat Action
+  const handleNewChat = () => {
+    // Create new blank conversation
+    const newConvo = createBlankConversation();
+    const updatedList = [newConvo, ...conversations.filter((c) => c.id !== newConvo.id)];
+    setActiveConversationId(newConvo.id);
+    setInput("");
+    persistConversations(updatedList, newConvo);
+  };
+
+  // 2. Handle Selecting a Conversation from History
+  const handleSelectConversation = (id: string) => {
+    setActiveConversationId(id);
+  };
+
+  // 3. Handle Renaming a Conversation
+  const handleRenameConversation = (id: string, newTitle: string) => {
+    const updatedList = conversations.map((c) => {
+      if (c.id === id) {
+        return { ...c, title: newTitle, updatedAt: new Date().toISOString() };
+      }
+      return c;
+    });
+
+    const targetConvo = updatedList.find((c) => c.id === id);
+    persistConversations(updatedList, targetConvo);
+
+    // Call server rename API
+    fetch(`/api/conversations/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title: newTitle, userEmail: user.email }),
+    }).catch((err) => console.warn("Failed to update title on server:", err));
+  };
+
+  // 4. Handle Deleting a Conversation
+  const handleDeleteConversation = (id: string) => {
+    const remaining = conversations.filter((c) => c.id !== id);
+
+    if (remaining.length === 0) {
+      // If deleted the last one, create a fresh one
+      const fresh = createBlankConversation();
+      setConversations([fresh]);
+      setActiveConversationId(fresh.id);
+      persistConversations([fresh], fresh);
+    } else {
+      setConversations(remaining);
+      if (activeConversationId === id) {
+        setActiveConversationId(remaining[0].id);
+      }
+      persistConversations(remaining);
+    }
+
+    // Call server delete API
+    fetch(`/api/conversations/${id}?email=${encodeURIComponent(user.email)}`, {
+      method: "DELETE",
+    }).catch((err) => console.warn("Failed to delete conversation from server:", err));
+  };
+
+  // 5. Handle Sending a Message
+  const handleSend = async (textToSend?: string) => {
+    const query = textToSend || input;
+    if (!query.trim() || isLoading) return;
+
+    const userMsg: ChatMessage = {
+      id: `usr_${Date.now()}`,
+      sender: "user",
+      text: query.trim(),
+      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+    };
+
+    // Calculate updated title if this is the first user message
+    const isFirstUserMessage = activeConversation
+      ? !activeConversation.messages.some((m) => m.sender === "user")
+      : true;
+
+    const updatedTitle =
+      isFirstUserMessage && activeConversation?.title === "New Conversation"
+        ? generateChatTitle(query)
+        : activeConversation?.title || "New Conversation";
+
+    const updatedMessages = [...(activeConversation?.messages || []), userMsg];
+    const nowIso = new Date().toISOString();
+
+    const updatedActiveConvo: Conversation = {
+      ...(activeConversation || createBlankConversation()),
+      title: updatedTitle,
+      updatedAt: nowIso,
+      messages: updatedMessages,
+    };
+
+    // Reorder so active convo is at top of history
+    const updatedList = [
+      updatedActiveConvo,
+      ...conversations.filter((c) => c.id !== updatedActiveConvo.id),
+    ];
+
+    persistConversations(updatedList, updatedActiveConvo);
+
+    if (!textToSend) setInput("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: query,
+          role: user.role,
+          user: {
+            name: user.name,
+            email: user.email,
+            department: user.department,
+            studentIdOrFacultyId: user.studentIdOrFacultyId,
+          },
+          history: updatedMessages.map((m) => ({ sender: m.sender, text: m.text })),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Server error");
+      }
+
+      const aiMsg: ChatMessage = {
+        id: `ai_${Date.now()}`,
+        sender: "ai",
+        text: data.text,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const finalMessages = [...updatedMessages, aiMsg];
+      const finalizedConvo: Conversation = {
+        ...updatedActiveConvo,
+        updatedAt: new Date().toISOString(),
+        messages: finalMessages,
+      };
+
+      const finalList = [
+        finalizedConvo,
+        ...conversations.filter((c) => c.id !== finalizedConvo.id),
+      ];
+
+      persistConversations(finalList, finalizedConvo);
+    } catch (err: any) {
+      console.error("Chat error:", err);
+      const errorMsg: ChatMessage = {
+        id: `err_${Date.now()}`,
+        sender: "ai",
+        text: `⚠️ **System Note**: ${
+          err.message || "Unable to reach Noodle AI server. Please verify your connection."
+        }`,
+        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      };
+
+      const finalMessages = [...updatedMessages, errorMsg];
+      const finalizedConvo: Conversation = {
+        ...updatedActiveConvo,
+        updatedAt: new Date().toISOString(),
+        messages: finalMessages,
+      };
+
+      const finalList = [
+        finalizedConvo,
+        ...conversations.filter((c) => c.id !== finalizedConvo.id),
+      ];
+
+      persistConversations(finalList, finalizedConvo);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCopy = (id: string, text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(id);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const currentPillars = isStudent ? STUDENT_PILLARS : FACULTY_PILLARS;
   const currentFaqs = isStudent ? STUDENT_FAQS : FACULTY_FAQS;
@@ -221,367 +490,338 @@ I am your **Faculty Enablement & Pedagogy Specialist**. Here is how Noodle Facto
 
   const currentPrompts = isStudent ? studentPrompts : facultyPrompts;
 
-  const handleSend = async (textToSend?: string) => {
-    const query = textToSend || input;
-    if (!query.trim() || isLoading) return;
-
-    const userMsg: ChatMessage = {
-      id: Date.now().toString(),
-      sender: "user",
-      text: query,
-      timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-
-    setMessages((prev) => [...prev, userMsg]);
-    if (!textToSend) setInput("");
-    setIsLoading(true);
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: query,
-          role: user.role,
-          user: {
-            name: user.name,
-            email: user.email,
-            department: user.department,
-          },
-          history: messages.map((m) => ({ sender: m.sender, text: m.text })),
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || "Server error");
-      }
-
-      const aiMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        text: data.text,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-
-      setMessages((prev) => [...prev, aiMsg]);
-    } catch (err: any) {
-      console.error(err);
-      const errorMsg: ChatMessage = {
-        id: (Date.now() + 1).toString(),
-        sender: "ai",
-        text: `⚠️ **System Note**: ${
-          err.message || "Unable to reach Noodle AI server. Please verify GEMINI_API_KEY setting."
-        }`,
-        timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-      };
-      setMessages((prev) => [...prev, errorMsg]);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const copyToClipboard = (id: string, text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
-  };
-
   return (
-    <div className="max-w-6xl mx-auto p-3 sm:p-6 space-y-6">
+    <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 flex gap-4 h-[calc(100vh-130px)] min-h-[620px]">
       
-      {/* Personalized Hero Banner */}
-      <div className="bg-gradient-to-r from-zinc-900 via-zinc-800 to-[#800000] rounded-3xl p-5 sm:p-6 text-white shadow-lg border border-amber-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div className="flex items-center space-x-4">
-          <div className="p-3.5 bg-amber-400 text-zinc-950 rounded-2xl shadow-md shrink-0">
-            {isStudent ? <GraduationCap className="w-7 h-7" /> : <Briefcase className="w-7 h-7" />}
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-mono font-bold text-amber-300 uppercase tracking-wider bg-amber-400/20 px-2.5 py-0.5 rounded-full border border-amber-400/30">
-                {isStudent ? "Student Mode" : "Faculty Mode"}
-              </span>
-              <span className="text-xs text-zinc-300">• {user.department}</span>
+      {/* 1. Chat History Sidebar Component */}
+      <ChatHistorySidebar
+        conversations={conversations}
+        activeConversationId={activeConversationId}
+        userRole={user.role}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        onSelectConversation={handleSelectConversation}
+        onNewChat={handleNewChat}
+        onRenameConversation={handleRenameConversation}
+        onDeleteConversation={handleDeleteConversation}
+      />
+
+      {/* 2. Main Chat Area */}
+      <div className="flex-1 flex flex-col bg-white rounded-3xl shadow-xl border border-zinc-200 overflow-hidden relative">
+        
+        {/* Chat Header Bar */}
+        <div className="bg-zinc-900 text-white px-4 sm:px-6 py-3 border-b border-zinc-800 flex items-center justify-between gap-3 shrink-0">
+          <div className="flex items-center gap-3 min-w-0">
+            
+            {/* Toggle Sidebar Button */}
+            <button
+              id="chat-toggle-sidebar-btn"
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="p-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition cursor-pointer shrink-0 border border-zinc-700"
+              title={isSidebarOpen ? "Hide Chat History" : "Show Chat History"}
+            >
+              <PanelLeft className="w-4 h-4" />
+            </button>
+
+            <div className="w-8 h-8 rounded-xl bg-[#800000] border border-amber-400/40 flex items-center justify-center text-amber-300 shadow-xs shrink-0">
+              <Bot className="w-4 h-4" />
             </div>
-            <h2 className="text-lg sm:text-xl font-bold text-white mt-1">
-              {isStudent
-                ? `Welcome, ${user.name} — Cardinal AI Learning Copilot`
-                : `Welcome, ${user.name} — Faculty Pedagogy & Onboarding Specialist`}
-            </h2>
-            <p className="text-xs text-zinc-300 mt-0.5 max-w-2xl leading-relaxed">
-              {isStudent
-                ? "Leverage Noodle Factory Socratic AI to master Course Outcomes (CO1-CO4), solve engineering problems, and navigate MyMapua petitions."
-                : "Digitize your course knowledge base into 24/7 AI TAs, streamline rubric-based grading, and optimize student consultation hours."}
-            </p>
-          </div>
-        </div>
 
-        <button
-          onClick={() => setShowFaq(!showFaq)}
-          className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl text-xs font-semibold text-amber-200 transition shrink-0 self-stretch sm:self-auto justify-center cursor-pointer"
-        >
-          <HelpCircle className="w-4 h-4 text-amber-400" />
-          <span>{showFaq ? "Hide Quick FAQ" : `${isStudent ? "Student" : "Faculty"} FAQ`}</span>
-          {showFaq ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
-      </div>
-
-      {/* Expandable FAQ Drawer */}
-      {showFaq && (
-        <div className="bg-white border border-amber-200/80 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3 transition-all">
-          <div className="flex items-center justify-between border-b border-zinc-100 pb-2">
-            <h3 className="text-sm font-bold text-zinc-900 flex items-center gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-600" />
-              Frequently Asked Questions for Mapúa {isStudent ? "Students" : "Faculty"}
-            </h3>
-            <span className="text-xs text-zinc-500 font-mono">Noodle Factory Knowledge Base</span>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-            {currentFaqs.map((faq, idx) => (
-              <div
-                key={idx}
-                className="p-3.5 rounded-xl border border-zinc-200 bg-zinc-50/70 hover:bg-amber-50/50 transition cursor-pointer"
-                onClick={() => setExpandedFaqIndex(expandedFaqIndex === idx ? null : idx)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-bold text-zinc-800">{faq.question}</span>
-                  {expandedFaqIndex === idx ? (
-                    <ChevronUp className="w-4 h-4 text-zinc-400 shrink-0" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4 text-zinc-400 shrink-0" />
-                  )}
-                </div>
-                {expandedFaqIndex === idx && (
-                  <p className="text-xs text-zinc-600 mt-2.5 pt-2 border-t border-zinc-200/60 leading-relaxed">
-                    {faq.answer}
-                  </p>
-                )}
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <h2 className="text-xs sm:text-sm font-bold text-white truncate max-w-[200px] sm:max-w-[340px]">
+                  {activeConversation?.title || "New Conversation"}
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-amber-400/20 text-amber-300 border border-amber-400/30 shrink-0 hidden sm:inline-block">
+                  {isStudent ? "Student Mode" : "Faculty Mode"}
+                </span>
               </div>
-            ))}
+              <p className="text-[11px] text-zinc-400 truncate">
+                Mapúa AI Curriculum Integration • Walter AI & OBE Engine
+              </p>
+            </div>
           </div>
-        </div>
-      )}
 
-      {/* Core Platform Pillars Interactive Matrix */}
-      <div className="bg-white border border-zinc-200 rounded-2xl p-4 sm:p-5 shadow-sm space-y-3.5">
-        <div className="flex items-center justify-between border-b border-zinc-100 pb-2.5">
-          <div className="flex items-center space-x-2">
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            <span className="text-xs font-bold text-zinc-900 uppercase tracking-wide font-mono">
-              {isStudent ? "Student Academic Pillars" : "Faculty Pedagogy & Platform Pillars"}
+          {/* Quick Header New Chat Button */}
+          <button
+            onClick={handleNewChat}
+            id="header-quick-new-chat-btn"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-zinc-950 font-bold text-xs transition shadow-xs cursor-pointer shrink-0"
+            title="Start a new blank conversation"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">New Chat</span>
+          </button>
+        </div>
+
+        {/* Learning Pillars Quick Exploration Ribbon */}
+        <div className="bg-zinc-50 border-b border-zinc-200 px-4 py-2.5 shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-2 min-w-max">
+            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-wider font-mono flex items-center gap-1">
+              <Lightbulb className="w-3.5 h-3.5 text-amber-500" />
+              Focus Areas:
             </span>
-          </div>
-          <span className="text-[11px] text-zinc-500 font-mono">Click any pillar to ask Noodle AI</span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 text-xs">
-          {currentPillars.map((pillar) => {
-            const isActive = activePillarId === pillar.id;
-            return (
+            {currentPillars.map((pillar) => (
               <button
                 key={pillar.id}
                 onClick={() => {
                   setActivePillarId(pillar.id);
                   handleSend(pillar.prompt);
                 }}
-                className={`p-4 rounded-xl border text-left transition flex flex-col justify-between gap-2.5 relative group cursor-pointer ${
-                  isActive
-                    ? "bg-amber-50/80 border-[#800000] text-[#800000] shadow-sm ring-1 ring-[#800000]/20"
-                    : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100 hover:border-zinc-300"
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition flex items-center gap-1.5 cursor-pointer border ${
+                  activePillarId === pillar.id
+                    ? "bg-[#800000] text-amber-200 border-amber-400/40 shadow-xs"
+                    : "bg-white text-zinc-700 border-zinc-300 hover:bg-zinc-100 hover:border-zinc-400"
                 }`}
               >
-                <div>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-zinc-200/70 text-zinc-700">
-                      {pillar.badge}
+                <span>{pillar.title}</span>
+                <span className="text-[10px] opacity-75 font-mono">({pillar.badge})</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Chat Messages Stream */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 bg-zinc-100/50">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex items-start gap-3 ${
+                msg.sender === "user" ? "flex-row-reverse" : "flex-row"
+              }`}
+            >
+              {/* Avatar */}
+              <div
+                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 shadow-xs ${
+                  msg.sender === "user"
+                    ? "bg-zinc-800 text-amber-300 border border-zinc-700"
+                    : "bg-[#800000] text-amber-300 border border-amber-400/40"
+                }`}
+              >
+                {msg.sender === "user" ? (
+                  <User className="w-4 h-4" />
+                ) : (
+                  <Bot className="w-4 h-4" />
+                )}
+              </div>
+
+              {/* Message Bubble */}
+              <div
+                className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 shadow-sm border ${
+                  msg.sender === "user"
+                    ? "bg-[#800000] text-amber-50 border-[#6d0000] rounded-tr-xs"
+                    : "bg-white text-zinc-900 border-zinc-200/90 rounded-tl-xs"
+                }`}
+              >
+                {/* Header info in bubble */}
+                <div className="flex items-center justify-between gap-4 mb-2 pb-1.5 border-b border-black/5 text-[11px]">
+                  <span
+                    className={`font-bold font-mono ${
+                      msg.sender === "user" ? "text-amber-200" : "text-[#800000]"
+                    }`}
+                  >
+                    {msg.sender === "user" ? user.name : isStudent ? "Noodle Learning Copilot" : "Noodle Faculty Copilot"}
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`text-[10px] ${
+                        msg.sender === "user" ? "text-amber-200/70" : "text-zinc-400"
+                      }`}
+                    >
+                      {msg.timestamp}
                     </span>
-                    {isStudent ? (
-                      pillar.id === "socratic" ? (
-                        <Compass className="w-4 h-4 text-amber-600 shrink-0" />
-                      ) : pillar.id === "obe" ? (
-                        <BarChart3 className="w-4 h-4 text-amber-600 shrink-0" />
-                      ) : pillar.id === "admin" ? (
-                        <FileText className="w-4 h-4 text-amber-600 shrink-0" />
-                      ) : (
-                        <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                      )
-                    ) : pillar.id === "kb" ? (
-                      <BookOpen className="w-4 h-4 text-amber-600 shrink-0" />
-                    ) : pillar.id === "rubric" ? (
-                      <Award className="w-4 h-4 text-amber-600 shrink-0" />
-                    ) : pillar.id === "consultation" ? (
-                      <Clock className="w-4 h-4 text-amber-600 shrink-0" />
-                    ) : (
-                      <BarChart3 className="w-4 h-4 text-amber-600 shrink-0" />
+                    {msg.sender === "ai" && (
+                      <button
+                        onClick={() => handleCopy(msg.id, msg.text)}
+                        className="text-zinc-400 hover:text-zinc-700 p-0.5 rounded transition"
+                        title="Copy message"
+                      >
+                        {copiedId === msg.id ? (
+                          <Check className="w-3.5 h-3.5 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-3.5 h-3.5" />
+                        )}
+                      </button>
                     )}
                   </div>
-                  <h4 className="font-bold text-xs text-zinc-900 group-hover:text-[#800000] transition">
-                    {pillar.title}
-                  </h4>
-                  <p className="text-[11px] font-normal text-zinc-600 mt-1 leading-relaxed">
-                    {pillar.shortDesc}
-                  </p>
                 </div>
 
-                <div className="pt-2 border-t border-zinc-200/60 flex items-center justify-between text-[10px] text-zinc-500 font-mono">
-                  <span>Explore Workflow</span>
-                  <span className="text-[#800000] font-bold">→</span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Main AI Chat Stream Box */}
-      <div className="bg-white border border-zinc-200 rounded-2xl shadow-sm p-4 sm:p-5 h-[520px] overflow-y-auto space-y-4">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex items-start gap-3 ${
-              msg.sender === "user" ? "flex-row-reverse" : "flex-row"
-            }`}
-          >
-            {/* Avatar */}
-            <div
-              className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 shadow-sm ${
-                msg.sender === "user"
-                  ? "bg-zinc-900 text-amber-400 font-bold"
-                  : "bg-gradient-to-br from-[#800000] to-[#a00000] text-amber-300"
-              }`}
-            >
-              {msg.sender === "user" ? (
-                isStudent ? (
-                  <GraduationCap className="w-5 h-5" />
-                ) : (
-                  <Briefcase className="w-5 h-5" />
-                )
-              ) : (
-                <Bot className="w-5 h-5" />
-              )}
-            </div>
-
-            {/* Bubble */}
-            <div
-              className={`max-w-[88%] sm:max-w-[80%] rounded-2xl p-4 text-xs sm:text-sm leading-relaxed shadow-xs relative group ${
-                msg.sender === "user"
-                  ? "bg-[#800000] text-white rounded-tr-none"
-                  : "bg-zinc-50 text-zinc-800 border border-zinc-200/90 rounded-tl-none"
-              }`}
-            >
-              {/* Copy Button */}
-              {msg.sender === "ai" && (
-                <button
-                  onClick={() => copyToClipboard(msg.id, msg.text)}
-                  className="absolute top-2 right-2 p-1 text-zinc-400 hover:text-zinc-600 rounded transition opacity-0 group-hover:opacity-100 bg-white/80"
-                  title="Copy"
-                >
-                  {copiedId === msg.id ? (
-                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                {/* Message Content rendered cleanly */}
+                <div className="font-sans text-xs sm:text-sm leading-relaxed space-y-2 break-words">
+                  {msg.sender === "user" ? (
+                    <div className="whitespace-pre-wrap">{msg.text}</div>
                   ) : (
-                    <Copy className="w-3.5 h-3.5" />
+                    <div className="space-y-2 text-zinc-800">
+                      <Markdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          p: ({ children }) => <p className="mb-2 last:mb-0 leading-relaxed">{children}</p>,
+                          strong: ({ children }) => <strong className="font-bold text-zinc-950">{children}</strong>,
+                          em: ({ children }) => <em className="italic">{children}</em>,
+                          ul: ({ children }) => <ul className="list-disc pl-5 my-2 space-y-1">{children}</ul>,
+                          ol: ({ children }) => <ol className="list-decimal pl-5 my-2 space-y-1">{children}</ol>,
+                          li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                          h1: ({ children }) => <h1 className="text-base sm:text-lg font-bold text-[#800000] mt-3 mb-1.5">{children}</h1>,
+                          h2: ({ children }) => <h2 className="text-sm sm:text-base font-bold text-[#800000] mt-2.5 mb-1">{children}</h2>,
+                          h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold text-zinc-900 mt-2 mb-1">{children}</h3>,
+                          code: ({ children, className }) => {
+                            const isInline = !className?.includes("language-");
+                            return isInline ? (
+                              <code className="bg-amber-100/70 text-amber-950 font-mono text-[11px] px-1.5 py-0.5 rounded border border-amber-300/60">
+                                {children}
+                              </code>
+                            ) : (
+                              <pre className="bg-zinc-900 text-zinc-100 p-3 rounded-xl overflow-x-auto text-[11px] font-mono my-2 border border-zinc-800">
+                                <code>{children}</code>
+                              </pre>
+                            );
+                          },
+                          blockquote: ({ children }) => (
+                            <blockquote className="border-l-3 border-amber-500 pl-3 py-1 my-2 text-zinc-600 italic bg-amber-50/60 rounded-r-lg">
+                              {children}
+                            </blockquote>
+                          ),
+                          table: ({ children }) => (
+                            <div className="overflow-x-auto my-2">
+                              <table className="min-w-full text-xs border border-zinc-300 rounded-lg overflow-hidden">
+                                {children}
+                              </table>
+                            </div>
+                          ),
+                          th: ({ children }) => (
+                            <th className="bg-zinc-100 border-b border-zinc-300 px-3 py-1.5 font-bold text-left text-zinc-800">
+                              {children}
+                            </th>
+                          ),
+                          td: ({ children }) => (
+                            <td className="border-b border-zinc-200 px-3 py-1.5 text-zinc-700">
+                              {children}
+                            </td>
+                          ),
+                        }}
+                      >
+                        {msg.text}
+                      </Markdown>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {/* AI Thinking Animation */}
+          {isLoading && (
+            <div className="flex items-start gap-3 animate-fadeIn">
+              <div className="w-8 h-8 rounded-xl bg-[#800000] text-amber-300 border border-amber-400/40 flex items-center justify-center shrink-0">
+                <Bot className="w-4 h-4" />
+              </div>
+              <div className="bg-white border border-zinc-200 rounded-2xl rounded-tl-xs p-4 shadow-sm flex items-center space-x-2">
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce"></div>
+                <div className="w-2 h-2 rounded-full bg-[#800000] animate-bounce [animation-delay:0.2s]"></div>
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-bounce [animation-delay:0.4s]"></div>
+                <span className="text-xs text-zinc-500 font-mono ml-2">
+                  Consulting Noodle Factory & Mapúa OBE knowledge...
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* Suggested Prompts Pill Tray */}
+        <div className="bg-white px-4 py-2 border-t border-zinc-200 overflow-x-auto">
+          <div className="flex items-center gap-1.5 min-w-max">
+            <span className="text-[11px] font-bold text-zinc-400 uppercase font-mono mr-1">
+              Suggestions:
+            </span>
+            {currentPrompts.map((p, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleSend(p)}
+                className="px-2.5 py-1 bg-zinc-100 hover:bg-amber-100 hover:text-amber-950 text-zinc-700 rounded-lg text-[11px] font-medium border border-zinc-200 transition cursor-pointer"
+              >
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ Accordion Toggle Bar */}
+        <div className="bg-zinc-50 border-t border-zinc-200 px-4 py-1.5 flex items-center justify-between text-xs text-zinc-600">
+          <button
+            onClick={() => setShowFaq(!showFaq)}
+            className="flex items-center gap-1.5 font-bold text-zinc-700 hover:text-[#800000] transition cursor-pointer"
+          >
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+            <span>Mapúa University {isStudent ? "Student" : "Faculty"} FAQs & Guidelines</span>
+            {showFaq ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+          </button>
+          <span className="text-[10px] text-zinc-400 font-mono">
+            {isStudent ? "Quarterm & Socratic FAQ" : "Rubric & LMS Ingestion FAQ"}
+          </span>
+        </div>
+
+        {/* Collapsible FAQ Drawer */}
+        {showFaq && (
+          <div className="bg-amber-50/40 border-t border-zinc-200 p-4 max-h-48 overflow-y-auto space-y-2 text-xs">
+            {currentFaqs.map((faq, idx) => (
+              <div key={idx} className="bg-white p-3 rounded-xl border border-zinc-200 shadow-xs">
+                <button
+                  onClick={() => setExpandedFaqIndex(expandedFaqIndex === idx ? null : idx)}
+                  className="w-full flex items-center justify-between text-left font-bold text-zinc-800 hover:text-[#800000]"
+                >
+                  <span>{faq.question}</span>
+                  {expandedFaqIndex === idx ? (
+                    <ChevronUp className="w-3.5 h-3.5 text-zinc-400" />
+                  ) : (
+                    <ChevronDown className="w-3.5 h-3.5 text-zinc-400" />
                   )}
                 </button>
-              )}
-
-              {/* Message Header */}
-              <div className="flex items-center justify-between text-[11px] mb-2 opacity-80 border-b pb-1.5 border-current/10">
-                <span className="font-semibold flex items-center gap-1.5">
-                  {msg.sender === "user" ? (
-                    `${user.name} (${isStudent ? "Student" : "Faculty"})`
-                  ) : (
-                    <>
-                      <Sparkles className="w-3 h-3 text-amber-500 inline" />
-                      Noodle Factory {isStudent ? "Learning Copilot" : "Faculty Specialist"}
-                    </>
-                  )}
-                </span>
-                <span className="font-mono text-[10px]">{msg.timestamp}</span>
+                {expandedFaqIndex === idx && (
+                  <p className="mt-2 text-zinc-600 leading-relaxed border-t border-zinc-100 pt-2">
+                    {faq.answer}
+                  </p>
+                )}
               </div>
-
-              {/* Message Content */}
-              <div className="whitespace-pre-wrap font-sans text-xs sm:text-sm space-y-2">
-                {msg.text}
-              </div>
-            </div>
-          </div>
-        ))}
-
-        {/* Loading Spinner */}
-        {isLoading && (
-          <div className="flex items-center space-x-3 text-zinc-500 text-xs italic p-2 bg-amber-50/50 rounded-xl border border-amber-200/50">
-            <div className="w-8 h-8 rounded-xl bg-[#800000]/10 text-[#800000] flex items-center justify-center animate-spin">
-              <RefreshCw className="w-4 h-4" />
-            </div>
-            <div className="flex flex-col">
-              <span className="font-medium text-zinc-800">
-                Noodle Factory AI is formulating guidance for {user.name}...
-              </span>
-              <span className="text-[11px] text-zinc-500 font-mono">
-                Powered by Gemini 3.6 Flash Server API
-              </span>
-            </div>
+            ))}
           </div>
         )}
 
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Suggested Prompts Bar */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-zinc-600 flex items-center gap-1.5">
-            <Lightbulb className="w-4 h-4 text-amber-500" />
-            Recommended Prompts for {isStudent ? "Students" : "Faculty"}:
-          </span>
-          <span className="text-[11px] text-zinc-400">Click any prompt to ask</span>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {currentPrompts.map((prompt, idx) => (
-            <button
-              key={idx}
-              onClick={() => handleSend(prompt)}
-              disabled={isLoading}
-              className="text-xs bg-white hover:bg-amber-50 text-zinc-700 hover:text-[#800000] border border-zinc-200 hover:border-amber-400 px-3.5 py-2 rounded-xl shadow-2xs transition text-left flex items-center gap-1.5 cursor-pointer"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0"></span>
-              <span>{prompt}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Input Box */}
-      <div className="relative flex items-center bg-white border border-zinc-300 rounded-2xl shadow-sm p-2 focus-within:border-[#800000] focus-within:ring-2 focus-within:ring-[#800000]/20 transition">
-        <textarea
-          id="noodle-chat-input"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              handleSend();
-            }
+        {/* Message Input Box */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSend();
           }}
-          placeholder={
-            isStudent
-              ? "Ask Noodle Factory AI about Socratic tutoring, CO1-CO4 practice, MyMapua petitions, or Quarterm review..."
-              : "Ask Noodle Factory AI about syllabus digitization, automated rubric grading, consultation hour optimization, or Blackboard LMS sync..."
-          }
-          rows={2}
-          className="w-full text-xs sm:text-sm text-zinc-800 placeholder-zinc-400 bg-transparent resize-none focus:outline-none px-3 py-1"
-        />
-        <button
-          id="noodle-chat-send-btn"
-          onClick={() => handleSend()}
-          disabled={!input.trim() || isLoading}
-          className="ml-2 px-5 py-3 bg-gradient-to-r from-[#800000] to-[#990000] hover:from-[#6d0000] hover:to-[#800000] text-amber-300 disabled:opacity-40 disabled:cursor-not-allowed rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition shrink-0 cursor-pointer"
+          className="p-3 sm:p-4 bg-white border-t border-zinc-200 flex items-center gap-2 shrink-0"
         >
-          <span>Ask Agent</span>
-          <Send className="w-4 h-4" />
-        </button>
+          <div className="relative flex-1 flex items-center">
+            <input
+              id="noodle-chat-input"
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={
+                isStudent
+                  ? "Ask anything about Socratic tutoring, OBE Course Outcomes, MyMapua petitions..."
+                  : "Ask about digitizing syllabi, automated rubric marking, Blackboard LMS sync..."
+              }
+              className="w-full bg-zinc-50 border border-zinc-300 focus:border-[#800000] focus:ring-1 focus:ring-[#800000] rounded-2xl pl-4 pr-12 py-3 text-xs sm:text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none transition shadow-inner"
+            />
+          </div>
+
+          <button
+            type="submit"
+            id="noodle-chat-send-btn"
+            disabled={isLoading || !input.trim()}
+            className="p-3 bg-gradient-to-r from-[#800000] via-[#990000] to-[#b30000] hover:from-[#6d0000] hover:to-[#800000] text-amber-300 font-bold rounded-2xl shadow-md border border-amber-500/30 flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer shrink-0"
+            title="Send Message"
+          >
+            <Send className="w-4 h-4" />
+          </button>
+        </form>
+
       </div>
 
     </div>

@@ -1,5 +1,6 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
 import dotenv from "dotenv";
@@ -10,6 +11,55 @@ const app = express();
 const PORT = 3000;
 
 app.use(express.json({ limit: "10mb" }));
+
+// Persistent storage file path for conversations
+const DATA_DIR = path.join(process.cwd(), "data");
+const CONVERSATIONS_FILE = path.join(DATA_DIR, "conversations.json");
+
+// Ensure data directory exists
+if (!fs.existsSync(DATA_DIR)) {
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+}
+
+interface ChatMessage {
+  id: string;
+  sender: "user" | "ai";
+  text: string;
+  timestamp: string;
+  category?: string;
+}
+
+interface Conversation {
+  id: string;
+  userEmail: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+  role: "student" | "faculty";
+}
+
+// Load conversations from disk or initialize
+function loadConversations(): Conversation[] {
+  try {
+    if (fs.existsSync(CONVERSATIONS_FILE)) {
+      const raw = fs.readFileSync(CONVERSATIONS_FILE, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch (err) {
+    console.error("Error reading conversations file:", err);
+  }
+  return [];
+}
+
+// Save conversations to disk
+function saveConversations(convos: Conversation[]) {
+  try {
+    fs.writeFileSync(CONVERSATIONS_FILE, JSON.stringify(convos, null, 2), "utf-8");
+  } catch (err) {
+    console.error("Error writing conversations file:", err);
+  }
+}
 
 // Lazy init Gemini client
 function getGeminiClient() {
@@ -49,9 +99,7 @@ const VALID_ACCOUNTS = [
   },
 ];
 
-// Comprehensive Knowledge Base extracted from Mapúa University Official Documentation:
-// 1. Initial Familiarization Report (May 8, 2026) - Cadacio, Justine David B. & Nicolas, Xandre Adrian M. (Office for AI Curriculum Integration)
-// 2. Faculty User Guide on AI Personalized Learning Tutor (May 22, 2026) - Cadacio & Nicolas
+// Comprehensive Knowledge Base extracted from Mapúa University Official Documentation
 const MAPUA_NOODLE_FACTORY_KNOWLEDGE = `
 AUTHORITATIVE MAPÚA NOODLE FACTORY KNOWLEDGE BASE (Office for Artificial Intelligence Curriculum Integration):
 
@@ -186,6 +234,104 @@ app.post("/api/auth/login", (req, res) => {
       avatarText: account.avatarText,
     },
   });
+});
+
+// Conversations CRUD Endpoints
+
+// 1. Get all conversations for a user
+app.get("/api/conversations", (req, res) => {
+  const email = (req.query.email as string)?.trim().toLowerCase();
+  if (!email) {
+    return res.status(400).json({ error: "User email parameter is required." });
+  }
+
+  const all = loadConversations();
+  const userConvos = all
+    .filter((c) => c.userEmail.toLowerCase() === email)
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  res.json({ success: true, conversations: userConvos });
+});
+
+// 2. Get a single conversation by ID
+app.get("/api/conversations/:id", (req, res) => {
+  const { id } = req.params;
+  const email = (req.query.email as string)?.trim().toLowerCase();
+
+  const all = loadConversations();
+  const found = all.find((c) => c.id === id && (!email || c.userEmail.toLowerCase() === email));
+
+  if (!found) {
+    return res.status(404).json({ error: "Conversation not found." });
+  }
+
+  res.json({ success: true, conversation: found });
+});
+
+// 3. Save / Upsert a conversation
+app.post("/api/conversations", (req, res) => {
+  const { conversation } = req.body;
+  if (!conversation || !conversation.id || !conversation.userEmail) {
+    return res.status(400).json({ error: "Valid conversation object is required." });
+  }
+
+  const all = loadConversations();
+  const existingIdx = all.findIndex((c) => c.id === conversation.id);
+
+  const updatedConversation: Conversation = {
+    ...conversation,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (existingIdx >= 0) {
+    all[existingIdx] = updatedConversation;
+  } else {
+    all.push(updatedConversation);
+  }
+
+  saveConversations(all);
+  res.json({ success: true, conversation: updatedConversation });
+});
+
+// 4. Rename / Patch conversation title
+app.patch("/api/conversations/:id", (req, res) => {
+  const { id } = req.params;
+  const { title, userEmail } = req.body;
+
+  if (!title || typeof title !== "string") {
+    return res.status(400).json({ error: "Title string is required." });
+  }
+
+  const all = loadConversations();
+  const target = all.find(
+    (c) => c.id === id && (!userEmail || c.userEmail.toLowerCase() === userEmail.toLowerCase())
+  );
+
+  if (!target) {
+    return res.status(404).json({ error: "Conversation not found." });
+  }
+
+  target.title = title.trim();
+  target.updatedAt = new Date().toISOString();
+
+  saveConversations(all);
+  res.json({ success: true, conversation: target });
+});
+
+// 5. Delete a conversation
+app.delete("/api/conversations/:id", (req, res) => {
+  const { id } = req.params;
+  const email = (req.query.email as string)?.trim().toLowerCase();
+
+  const all = loadConversations();
+  const filtered = all.filter((c) => !(c.id === id && (!email || c.userEmail.toLowerCase() === email)));
+
+  if (filtered.length === all.length) {
+    return res.status(404).json({ error: "Conversation not found to delete." });
+  }
+
+  saveConversations(filtered);
+  res.json({ success: true, message: "Conversation deleted successfully." });
 });
 
 // Chat endpoint for Student & Faculty Noodle Factory Copilot
