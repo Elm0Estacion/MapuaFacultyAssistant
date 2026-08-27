@@ -198,8 +198,43 @@ app.get("/api/health", (req, res) => {
     status: "ok",
     university: "Mapúa University",
     platform: "Noodle Factory AI Platform Integration",
-    model: "gemini-2.5-flash",
+    provider: process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama"),
+    ollamaHost: process.env.OLLAMA_HOST || "http://127.0.0.1:11434",
+    ollamaModel: process.env.OLLAMA_MODEL || "llama3.2",
   });
+});
+
+// Diagnostics endpoint to test Ollama connection directly
+app.get("/api/ai-status", async (req, res) => {
+  const ollamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+  const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
+  const provider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
+
+  const results: any = {
+    provider,
+    ollamaHost,
+    ollamaModel,
+    geminiKeySet: Boolean(process.env.GEMINI_API_KEY),
+    ollamaReachable: false,
+    installedModels: [],
+    details: "",
+  };
+
+  try {
+    const check = await fetch(`${ollamaHost}/api/tags`);
+    if (check.ok) {
+      const data: any = await check.json();
+      results.ollamaReachable = true;
+      results.installedModels = data?.models?.map((m: any) => m.name) || [];
+      results.details = "Connected to Ollama successfully.";
+    } else {
+      results.details = `Ollama responded with status ${check.status}`;
+    }
+  } catch (err: any) {
+    results.details = `Failed to connect to ${ollamaHost}: ${err.message}`;
+  }
+
+  res.json(results);
 });
 
 // Unified Authentication endpoint - automatically resolves role by email and password
@@ -354,56 +389,65 @@ ${context ? `Additional Context: ${context}` : ""}
 `;
 
     const provider = process.env.AI_PROVIDER || (process.env.GEMINI_API_KEY ? "gemini" : "ollama");
-    const ollamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
+    const rawOllamaHost = process.env.OLLAMA_HOST || "http://127.0.0.1:11434";
     const ollamaModel = process.env.OLLAMA_MODEL || "llama3.2";
 
     // 1. Try Local Ollama if configured or as fallback
     if (provider === "ollama" || !process.env.GEMINI_API_KEY) {
-      try {
-        const ollamaMessages = [
-          { role: "system", content: systemPrompt },
-          ...history.filter((h: any) => h && h.text && h.text.trim()).map((h: any) => ({
-            role: h.sender === "user" ? "user" : "assistant",
-            content: h.text.trim(),
-          })),
-          { role: "user", content: message.trim() },
-        ];
+      // List of local endpoints to try (handles IPv4 127.0.0.1 and localhost alias)
+      const hostCandidates = [
+        rawOllamaHost,
+        rawOllamaHost.includes("localhost") ? rawOllamaHost.replace("localhost", "127.0.0.1") : "http://127.0.0.1:11434",
+        "http://localhost:11434"
+      ];
+      const uniqueHosts = Array.from(new Set(hostCandidates));
 
-        const ollamaRes = await fetch(`${ollamaHost}/api/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            model: ollamaModel,
-            messages: ollamaMessages,
-            stream: false,
-            options: {
-              temperature: 0.7,
-            },
-          }),
-        });
+      const ollamaMessages = [
+        { role: "system", content: systemPrompt },
+        ...history.filter((h: any) => h && h.text && h.text.trim()).map((h: any) => ({
+          role: h.sender === "user" ? "user" : "assistant",
+          content: h.text.trim(),
+        })),
+        { role: "user", content: message.trim() },
+      ];
 
-        if (ollamaRes.ok) {
-          const data: any = await ollamaRes.json();
-          const replyText = data?.message?.content || "";
-          if (replyText) {
-            return res.json({ text: replyText, provider: `ollama (${ollamaModel})` });
-          }
-        } else {
-          const errText = await ollamaRes.text();
-          console.warn(`Ollama request failed (${ollamaRes.status}):`, errText);
-          if (provider === "ollama") {
-            return res.status(502).json({
-              error: `Local Ollama error (${ollamaRes.status}): ${errText || "Ensure the model is pulled using 'ollama pull " + ollamaModel + "'"}`,
-            });
-          }
-        }
-      } catch (ollamaErr: any) {
-        console.warn("Could not reach local Ollama instance at", ollamaHost, ollamaErr.message);
-        if (provider === "ollama") {
-          return res.status(503).json({
-            error: `Could not connect to local Ollama at ${ollamaHost}. Please ensure Ollama is running (run 'ollama serve' or open the Ollama app), or set GEMINI_API_KEY in .env.`,
+      let lastOllamaError: string = "";
+      for (const targetHost of uniqueHosts) {
+        try {
+          const ollamaRes = await fetch(`${targetHost}/api/chat`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              model: ollamaModel,
+              messages: ollamaMessages,
+              stream: false,
+              options: {
+                temperature: 0.7,
+              },
+            }),
           });
+
+          if (ollamaRes.ok) {
+            const data: any = await ollamaRes.json();
+            const replyText = data?.message?.content || "";
+            if (replyText) {
+              return res.json({ text: replyText, provider: `ollama (${ollamaModel})` });
+            }
+          } else {
+            const errText = await ollamaRes.text();
+            lastOllamaError = `Ollama response status ${ollamaRes.status}: ${errText}`;
+            console.warn(`Ollama request to ${targetHost} failed:`, errText);
+          }
+        } catch (ollamaErr: any) {
+          lastOllamaError = ollamaErr.message || "Connection refused";
+          console.warn(`Could not reach Ollama at ${targetHost}:`, ollamaErr.message);
         }
+      }
+
+      if (provider === "ollama") {
+        return res.status(503).json({
+          error: `Could not connect to Ollama. Details: ${lastOllamaError}. Please check that the Ollama app is open, or run 'ollama run ${ollamaModel}' in your terminal.`,
+        });
       }
     }
 
