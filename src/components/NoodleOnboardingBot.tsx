@@ -1,10 +1,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { UserProfile, ChatMessage, Conversation, PillarInfo, AIProvider } from "../types";
+import { UserProfile, ChatMessage, Conversation, PillarInfo } from "../types";
 import { ChatHistorySidebar } from "./ChatHistorySidebar";
 import { HandbookReferenceModal } from "./HandbookReferenceModal";
-import { AIProviderSwitch } from "./AIProviderSwitch";
 import { MAPUA_ACADEMIC_HANDBOOK_YEAR } from "../data/mapuaHandbookData";
 import { generateChatTitle } from "../utils/chatUtils";
 import {
@@ -39,91 +38,85 @@ interface NoodleOnboardingBotProps {
   isHandbookOpenExternal?: boolean;
   onCloseHandbookExternal?: () => void;
   onOpenHandbookExternal?: () => void;
-  aiProvider?: AIProvider;
-  onProviderChange?: (provider: AIProvider) => void;
-  ollamaModel?: string;
-  onOllamaModelChange?: (model: string) => void;
-  ollamaHost?: string;
-  onOllamaHostChange?: (host: string) => void;
 }
 
-// Student Pillars Definition (Aligned with Noodle Factory & Academic Handbook A.Y. 2026-2027)
+// Student Pillars Definition (Centered on Noodle Factory & Walter AI with Academic Context)
 const STUDENT_PILLARS: PillarInfo[] = [
   {
-    id: "ai-policy",
-    title: "1. Generative AI Policy",
-    shortDesc: "Official Mapúa AI guidelines (Part D, Section III), attribution requirements, and academic honesty.",
-    prompt: "According to the Mapúa Academic Handbook A.Y. 2026-2027 (Part D, Section III), what is the official policy on Generative AI, what are the allowed uses for students, and what attribution is required?",
-    iconName: "Sparkles",
-    badge: "Handbook Part D",
-    benefits: ["Allowed vs prohibited AI", "Attribution format", "Academic integrity safeguards"],
-  },
-  {
-    id: "socratic",
-    title: "2. Socratic AI Tutor",
-    shortDesc: "Step-by-step guided problem solving for engineering formulas and code without giving away direct answers.",
-    prompt: "How does Noodle Factory's Socratic tutoring help me understand engineering problems step-by-step without spoiling the answer keys?",
+    id: "walter-ai-guide",
+    title: "1. Walter AI Tutor in Blackboard",
+    shortDesc: "Step-by-step guide to accessing Walter AI Tutor in Blackboard Course Content and using Rich Editor & Voice modes.",
+    prompt: "How do I access and use Walter AI Tutor inside Mapúa Blackboard Course Content, and how do I use Rich Editor Mode for code and engineering formulas?",
     iconName: "Compass",
-    badge: "Active Learning",
-    benefits: ["Guided hints", "Formula breakdown", "Conceptual understanding"],
+    badge: "Walter AI Tutor",
+    benefits: ["Blackboard LTI access", "Rich Editor formulas & code", "Voice & Conversation modes"],
   },
   {
-    id: "grading-honors",
-    title: "3. Grading & Dean's List",
-    shortDesc: "Official 70%/80% grading scale, Dean's List QWA criteria (1.75-1.00), and President's List scholarship discounts.",
-    prompt: "Explain Mapúa's grading system table (Part B, Section IV, Item 7) and the exact qualifications for Dean's List and President's List tuition scholarships.",
+    id: "socratic-learning",
+    title: "2. Socratic AI Learning & Hints",
+    shortDesc: "Master complex concepts with step-by-step hints and guided problem-solving without spoiling answer keys.",
+    prompt: "How does Noodle Factory's Socratic tutoring guide me step-by-step through difficult problems, and why doesn't it give direct answer keys?",
+    iconName: "Sparkles",
+    badge: "Socratic Pedagogy",
+    benefits: ["Conceptual step-by-step hints", "Zero homework spoilers", "Continuous self-checks"],
+  },
+  {
+    id: "quizzes-roleplay",
+    title: "3. Interactive Quizzes & Role Plays",
+    shortDesc: "Practice Course Outcomes (CO1-CO4) with auto-generated conversational quizzes and 3D avatar role-play scenarios.",
+    prompt: "How do I take interactive quizzes and participate in simulated AI Role Play activities in Noodle Factory to master Course Outcomes (CO1-CO4)?",
     iconName: "Award",
-    badge: "Handbook Part B",
-    benefits: ["70% & 80% passing scales", "QWA 1.00-1.50 full scholarship", "Incomplete 'I' resolution"],
+    badge: "Active Practice",
+    benefits: ["Instant remediation feedback", "Course Outcome drills", "AI Role Play simulations"],
   },
   {
-    id: "admin-petitions",
-    title: "4. Petitions & Retention",
-    shortDesc: "20% absence threshold (5.00 failure), maximum load overload, prerequisite waivers, and shifting rules.",
-    prompt: "What are the rules on the 20% absence policy, prerequisite waivers, units overload petitions, and program retention under the Mapúa Academic Handbook?",
-    iconName: "FileText",
-    badge: "Handbook Rules",
-    benefits: ["Absences per unit breakdown", "34-unit overload rule", "Retention & shifting criteria"],
+    id: "handbook-ai-policy",
+    title: "4. AI Attribution & Academic Policies",
+    shortDesc: "Mapúa Generative AI Policy (Part D Sec III) attribution formatting, grading scales, and Dean's List requirements.",
+    prompt: "According to the Mapúa Academic Handbook (Part D Section III), what is the required attribution format when using AI on assignments, and what are the Dean's List requirements?",
+    iconName: "BookOpen",
+    badge: "Academic Context",
+    benefits: ["Reproducible AI attribution", "70%/80% grading criteria", "Dean's List QWA 1.00-1.75"],
   },
 ];
 
-// Faculty Pillars Definition
+// Faculty Pillars Definition (Centered on Noodle Factory Platform Workflows)
 const FACULTY_PILLARS: PillarInfo[] = [
   {
-    id: "kb",
-    title: "1. Syllabus & KB Digitization",
-    shortDesc: "Convert course syllabi, lecture slides (PPT/PDF), and lab manuals into 24/7 AI Teaching Assistants.",
-    prompt: "How do I upload and digitize my course syllabus, lecture slides, and lab manuals into a Noodle Factory Knowledge Base?",
+    id: "kb-creation",
+    title: "1. Knowledge Base & Group Setup",
+    shortDesc: "Convert course slides, PDFs, syllabi, and Blackboard content into a structured, zero-hallucination AI Assistant.",
+    prompt: "How do I create a Knowledge Base in Noodle Factory, organize files into Knowledge Groups and Subgroups, and import Blackboard LMS content properly?",
     iconName: "BookOpen",
-    badge: "Teaching Assistant",
-    benefits: ["Strict source grounding", "Multi-file ingestion", "Quarterm module organization"],
+    badge: "Knowledge Base",
+    benefits: ["One-time LMS import rule", "Subgroup modularization", "1000MB PDF/PPTX ingestion"],
   },
   {
-    id: "ai-syllabus-policy",
-    title: "2. Faculty AI Policy Guidance",
-    shortDesc: "Implement Mapúa Generative AI Policy (Part D Sec III) in course syllabi, assessment design, and research ethics.",
-    prompt: "How should faculty implement Mapúa's Academic Policy on Generative AI (Part D, Section III) in course syllabi, assessment design, and student attribution statements?",
+    id: "agentic-mode",
+    title: "2. Agentic Mode & Chat Behavior",
+    shortDesc: "Configure Agentic Mode with Learning Companion Plus, and turn OFF Fallback to GPT for strict course grounding.",
+    prompt: "What is Agentic Mode in Noodle Factory, how does 'Learning Companion Plus' guide students along Learning Outcomes, and why should I disable 'Fallback to GPT'?",
     iconName: "Sparkles",
-    badge: "Handbook Part D",
-    benefits: ["Sample syllabus AI statements", "Ethical AI integration", "AI detector guidelines"],
+    badge: "Agent Settings",
+    benefits: ["Proactive learning paths", "Zero-hallucination guarantee", "Document diagrams toggle"],
   },
   {
-    id: "rubric",
-    title: "3. Automated Rubric Grading",
-    shortDesc: "Set up criteria-based rubrics for instant preliminary scoring & qualitative feedback on lab reports and essays.",
-    prompt: "Explain how automated rubric grading works in Noodle Factory: how to configure criteria, scoring weights, and faculty moderation.",
+    id: "quizzes-rubrics",
+    title: "3. Question Banks & Rubric Grading",
+    shortDesc: "Generate AI distractors, create conversational quizzes, and automate preliminary rubric scoring on lab reports.",
+    prompt: "How do I use Noodle Factory's Question Bank to generate plausible distractors, and how does automated criteria-based rubric grading work with faculty moderation?",
     iconName: "Award",
-    badge: "Evaluation Engine",
-    benefits: ["Consistent grading criteria", "Constructive feedback", "Faculty final approval"],
+    badge: "Activities & Grading",
+    benefits: ["AI Distractor generator", "Automated rubric feedback", "100% faculty final approval"],
   },
   {
-    id: "consultation",
-    title: "4. Socratic Student Support",
-    shortDesc: "Reclaim up to 80% of repetitive consultation office hours with Socratic tutoring that promotes deep thinking.",
-    prompt: "How does Noodle Factory's Socratic AI help students problem-solve without giving away answers, and how does this reduce faculty consultation hours?",
-    iconName: "Clock",
-    badge: "Time Optimization",
-    benefits: ["Zero spoiler answer keys", "24/7 student availability", "More time for research"],
+    id: "analytics-insights",
+    title: "4. Analytics & Unanswered Queries",
+    shortDesc: "Monitor student engagement, identify knowledge gaps from 'Unanswered Questions', and save 80% of office hours.",
+    prompt: "How do I use Noodle Factory's Overview, Learner Insights, and Unanswered Questions tabs to detect syllabus gaps and optimize consultation hours?",
+    iconName: "BarChart3",
+    badge: "Class Analytics",
+    benefits: ["Unanswered query tracker", "Course Outcome mastery", "Reclaimed consultation time"],
   },
 ];
 
@@ -176,12 +169,6 @@ export const NoodleOnboardingBot: React.FC<NoodleOnboardingBotProps> = ({
   isHandbookOpenExternal,
   onCloseHandbookExternal,
   onOpenHandbookExternal,
-  aiProvider = "gemini",
-  onProviderChange,
-  ollamaModel = "llama3.2",
-  onOllamaModelChange,
-  ollamaHost = "http://127.0.0.1:11434",
-  onOllamaHostChange,
 }) => {
   const isStudent = user.role === "student";
   const userStorageKey = `mapua_convos_${user.email.toLowerCase().replace(/[^a-z0-9]/g, "_")}`;
@@ -432,9 +419,6 @@ I am your **Faculty Enablement & Pedagogy Specialist**, fully updated with the *
         body: JSON.stringify({
           message: query,
           role: user.role,
-          provider: aiProvider,
-          ollamaModel: ollamaModel,
-          ollamaHost: ollamaHost,
           user: {
             name: user.name,
             email: user.email,
@@ -455,7 +439,7 @@ I am your **Faculty Enablement & Pedagogy Specialist**, fully updated with the *
         id: `ai_${Date.now()}`,
         sender: "ai",
         text: data.text,
-        provider: data.provider || aiProvider,
+        provider: data.provider || "Ollama API",
         timestamp: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
       };
 
@@ -593,32 +577,6 @@ I am your **Faculty Enablement & Pedagogy Specialist**, fully updated with the *
 
           {/* Action Buttons: Handbook & New Chat */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* Quick Provider indicator tag on chat header */}
-            {onProviderChange && (
-              <button
-                type="button"
-                onClick={() => onProviderChange(aiProvider === "gemini" ? "ollama" : "gemini")}
-                className={`hidden md:flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-mono font-bold transition cursor-pointer border ${
-                  aiProvider === "gemini"
-                    ? "bg-[#FAF2DE] text-[#7A4D05] border-[#EAD5A8] hover:bg-[#F7EAC4]"
-                    : "bg-[#EEF2FF] text-[#3730A3] border-[#C7D2FE] hover:bg-[#E0E7FF]"
-                }`}
-                title={`Click to switch AI API (Currently using ${aiProvider === "gemini" ? "Gemini Cloud" : `Ollama Local ${ollamaModel}`})`}
-              >
-                {aiProvider === "gemini" ? (
-                  <>
-                    <Sparkles className="w-3 h-3 text-[#B8860B]" />
-                    <span>Gemini API</span>
-                  </>
-                ) : (
-                  <>
-                    <Terminal className="w-3 h-3 text-[#4338CA]" />
-                    <span>Ollama ({ollamaModel})</span>
-                  </>
-                )}
-              </button>
-            )}
-
             <button
               onClick={handleOpenModal}
               id="header-open-handbook-btn"

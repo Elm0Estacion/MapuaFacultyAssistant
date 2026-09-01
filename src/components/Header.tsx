@@ -1,30 +1,17 @@
 import React from "react";
-import { UserProfile, AIProvider } from "../types";
+import { UserProfile } from "../types";
 import { Bot, LogOut, BookOpen } from "lucide-react";
-import { AIProviderSwitch } from "./AIProviderSwitch";
 
 interface HeaderProps {
   user: UserProfile;
   onLogout: () => void;
   onOpenHandbook?: () => void;
-  currentProvider?: AIProvider;
-  onProviderChange?: (provider: AIProvider) => void;
-  ollamaModel?: string;
-  onOllamaModelChange?: (model: string) => void;
-  ollamaHost?: string;
-  onOllamaHostChange?: (host: string) => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   user,
   onLogout,
   onOpenHandbook,
-  currentProvider = "gemini",
-  onProviderChange,
-  ollamaModel = "llama3.2",
-  onOllamaModelChange,
-  ollamaHost = "http://127.0.0.1:11434",
-  onOllamaHostChange,
 }) => {
   const isStudent = user.role === "student";
 
@@ -57,22 +44,8 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           </div>
 
-          {/* Center / Right: Dual AI API Switcher & Actions */}
+          {/* Center / Right: Actions & Profile */}
           <div className="flex flex-wrap items-center justify-between md:justify-end gap-2.5 pt-2 md:pt-0 border-t md:border-t-0 border-white/10">
-            
-            {/* AI API Switcher Button Widget */}
-            {onProviderChange && (
-              <div className="shrink-0">
-                <AIProviderSwitch
-                  currentProvider={currentProvider}
-                  onProviderChange={onProviderChange}
-                  ollamaModel={ollamaModel}
-                  onOllamaModelChange={onOllamaModelChange || (() => {})}
-                  ollamaHost={ollamaHost}
-                  onOllamaHostChange={onOllamaHostChange || (() => {})}
-                />
-              </div>
-            )}
 
             {/* Handbook Quick Button */}
             {onOpenHandbook && (

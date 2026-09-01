@@ -1,13 +1,10 @@
-import React, { useState, useEffect } from "react";
-import { UserProfile, AIProvider } from "./types";
+import React, { useState } from "react";
+import { UserProfile } from "./types";
 import { Header } from "./components/Header";
 import { LoginScreen } from "./components/LoginScreen";
 import { NoodleOnboardingBot } from "./components/NoodleOnboardingBot";
 
 const AUTH_STORAGE_KEY = "mapua_noodle_user_session";
-const AI_PROVIDER_STORAGE_KEY = "mapua_ai_provider_pref";
-const OLLAMA_MODEL_STORAGE_KEY = "mapua_ollama_model_pref";
-const OLLAMA_HOST_STORAGE_KEY = "mapua_ollama_host_pref";
 
 export default function App() {
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -19,59 +16,7 @@ export default function App() {
     }
   });
 
-  const [aiProvider, setAiProvider] = useState<AIProvider>(() => {
-    try {
-      const saved = localStorage.getItem(AI_PROVIDER_STORAGE_KEY) as AIProvider;
-      return saved === "ollama" ? "ollama" : "gemini";
-    } catch {
-      return "gemini";
-    }
-  });
-
-  const [ollamaModel, setOllamaModel] = useState<string>(() => {
-    try {
-      return localStorage.getItem(OLLAMA_MODEL_STORAGE_KEY) || "llama3.2";
-    } catch {
-      return "llama3.2";
-    }
-  });
-
-  const [ollamaHost, setOllamaHost] = useState<string>(() => {
-    try {
-      return localStorage.getItem(OLLAMA_HOST_STORAGE_KEY) || "http://127.0.0.1:11434";
-    } catch {
-      return "http://127.0.0.1:11434";
-    }
-  });
-
   const [isHandbookOpen, setIsHandbookOpen] = useState(false);
-
-  const handleProviderChange = (provider: AIProvider) => {
-    setAiProvider(provider);
-    try {
-      localStorage.setItem(AI_PROVIDER_STORAGE_KEY, provider);
-    } catch (e) {
-      console.warn("Could not save AI provider preference:", e);
-    }
-  };
-
-  const handleOllamaModelChange = (model: string) => {
-    setOllamaModel(model);
-    try {
-      localStorage.setItem(OLLAMA_MODEL_STORAGE_KEY, model);
-    } catch (e) {
-      console.warn("Could not save Ollama model preference:", e);
-    }
-  };
-
-  const handleOllamaHostChange = (host: string) => {
-    setOllamaHost(host);
-    try {
-      localStorage.setItem(OLLAMA_HOST_STORAGE_KEY, host);
-    } catch (e) {
-      console.warn("Could not save Ollama host preference:", e);
-    }
-  };
 
   const handleLoginSuccess = (loggedInUser: UserProfile) => {
     setUser(loggedInUser);
@@ -99,17 +44,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-100/90 text-zinc-900 font-sans flex flex-col antialiased selection:bg-[#800000] selection:text-amber-200">
       
-      {/* Top Navigation Header with User Profile, AI Provider Switch, Handbook Button, & Logout */}
+      {/* Top Navigation Header with User Profile, Handbook Button, & Logout */}
       <Header
         user={user}
         onLogout={handleLogout}
         onOpenHandbook={() => setIsHandbookOpen(true)}
-        currentProvider={aiProvider}
-        onProviderChange={handleProviderChange}
-        ollamaModel={ollamaModel}
-        onOllamaModelChange={handleOllamaModelChange}
-        ollamaHost={ollamaHost}
-        onOllamaHostChange={handleOllamaHostChange}
       />
 
       {/* Main Content Body: Noodle Factory AI Copilot (Personalized for Student or Faculty) */}
@@ -119,12 +58,6 @@ export default function App() {
           isHandbookOpenExternal={isHandbookOpen}
           onCloseHandbookExternal={() => setIsHandbookOpen(false)}
           onOpenHandbookExternal={() => setIsHandbookOpen(true)}
-          aiProvider={aiProvider}
-          onProviderChange={handleProviderChange}
-          ollamaModel={ollamaModel}
-          onOllamaModelChange={handleOllamaModelChange}
-          ollamaHost={ollamaHost}
-          onOllamaHostChange={handleOllamaHostChange}
         />
       </main>
 
@@ -138,10 +71,6 @@ export default function App() {
           </div>
           <div className="text-zinc-400 font-mono text-[11px] flex items-center gap-2">
             <span>Academic Handbook A.Y. 2026-2027</span>
-            <span>•</span>
-            <span className="text-zinc-500 font-bold">
-              Active API: {aiProvider === "gemini" ? "Google Gemini Cloud" : `Ollama Local (${ollamaModel})`}
-            </span>
           </div>
         </div>
       </footer>
