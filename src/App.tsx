@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { UserProfile } from "./types";
 import { Header } from "./components/Header";
 import { LoginScreen } from "./components/LoginScreen";
@@ -15,8 +15,6 @@ export default function App() {
       return null;
     }
   });
-
-  const [isHandbookOpen, setIsHandbookOpen] = useState(false);
 
   const handleLoginSuccess = (loggedInUser: UserProfile) => {
     setUser(loggedInUser);
@@ -44,21 +42,12 @@ export default function App() {
   return (
     <div className="min-h-screen bg-zinc-100/90 text-zinc-900 font-sans flex flex-col antialiased selection:bg-[#800000] selection:text-amber-200">
       
-      {/* Top Navigation Header with User Profile, Handbook Button, & Logout */}
-      <Header
-        user={user}
-        onLogout={handleLogout}
-        onOpenHandbook={() => setIsHandbookOpen(true)}
-      />
+      {/* Top Navigation Header with User Profile & Logout */}
+      <Header user={user} onLogout={handleLogout} />
 
       {/* Main Content Body: Noodle Factory AI Copilot (Personalized for Student or Faculty) */}
       <main className="flex-1 pb-10">
-        <NoodleOnboardingBot
-          user={user}
-          isHandbookOpenExternal={isHandbookOpen}
-          onCloseHandbookExternal={() => setIsHandbookOpen(false)}
-          onOpenHandbookExternal={() => setIsHandbookOpen(true)}
-        />
+        <NoodleOnboardingBot user={user} />
       </main>
 
       {/* Footer */}
@@ -69,11 +58,12 @@ export default function App() {
             <span>•</span>
             <span>Noodle Factory AI Platform Integration</span>
           </div>
-          <div className="text-zinc-400 font-mono text-[11px] flex items-center gap-2">
-            <span>Academic Handbook A.Y. 2026-2027</span>
+          <div className="text-zinc-400 font-mono text-[11px]">
+            Mapúa Outcome-Based Education (OBE) • Quarterm System • Gemini 3.6 Flash Server API
           </div>
         </div>
       </footer>
+
     </div>
   );
 }
